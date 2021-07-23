@@ -7,5 +7,3 @@ Open = float
 Close = float
 Volume = float
 Time = str
-
-Candlestick = Dict[Open, Close, High, Low, Volume, Time]
