@@ -1,3 +1,4 @@
+'''Official ftx api client, cloned from FTX exchange original repo'''
 from datetime import datetime
 from api_and_main_class_config import API_KEY, API_SECRET, SUBACCOUNT_NAME
 import time
@@ -202,7 +203,8 @@ class FtxClient:
             if len(response) < limit:
                 break
         return results
-
+    
+    # written by me
     def get_historical_prices(self, market: str, resolution: int, 
                               start_time: float = None, end_time: float = None) -> List[dict]:
         return self._get(f'markets/{market}/candles', {'resolution': resolution,
