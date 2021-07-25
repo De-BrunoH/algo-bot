@@ -1,25 +1,23 @@
+from trader_config import Trade
+from typing import List, Set
 from Position import Position
-from typing import List
 import pandas as pd
 
 class Market:
-    name: str = None
-    positions: List[Position] = []
-    price_data: pd.DataFrame = pd.DataFrame()
-
-    # add second parameter with historical prices already 
-    # fetched by main class when initializing it after this functions properly
-
-    def __init__(self, name: str, price_data: pd.DataFrame = pd.DataFrame(), positions: pd.DataFrame = pd.DataFrame()) -> None:
+    def __init__(self, name: str, positions: List[Position], price_data: pd.DataFrame = pd.DataFrame()) -> None:
         self.name = name
-        self.positions = positions
+        self.positions: List[Position] = positions
+        self.waiting_trades: List[Trade] = []
         self.price_data = price_data
-    
-    def has_active_position(self) -> bool:
-        for position in self.positions:
-            if position.is_triggered:
-                return True
-        return False
 
-    def append_price_data(self, new_price_data: pd.DataFrame) -> None:
-        self.price_data.append(new_price_data, ignore_index=True)
+    def __repr__(self) -> str:
+        return f'Market: {self.name}'
+    
+    def is_in_position(self) -> bool:
+        return len(self.positions) == 0
+
+    def add_position(self, new_position: Position) -> None:
+        self.positions.append(new_position)
+    
+    def load_price_data(self, price_data: pd.DataFrame) -> None:
+        self.price_data = price_data
