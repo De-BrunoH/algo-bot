@@ -1,6 +1,5 @@
-'''Official ftx api client, cloned from FTX exchange original repo'''
 from datetime import datetime
-from api_and_main_class_config import API_KEY, API_SECRET, SUBACCOUNT_NAME
+from ftx_api_config import API_KEY, API_SECRET, SUBACCOUNT_NAME
 import time
 import urllib.parse
 from typing import Optional, Dict, Any, List
@@ -10,7 +9,7 @@ import hmac
 from ciso8601 import parse_datetime
 
 
-class FtxClient:
+class Ftx_client:
     _ENDPOINT = 'https://ftx.com/api/'
 
     def __init__(self) -> None:
@@ -133,7 +132,7 @@ class FtxClient:
                                      })
 
     def place_conditional_order(
-        self, market: str, side: str, size: float, type: str = 'stop',
+        self, order_spec: str, market: str, side: str, size: float, type: str = 'stop',
         limit_price: float = None, reduce_only: bool = False, cancel: bool = True,
         trigger_price: float = None, trail_value: float = None
     ) -> dict:
@@ -149,15 +148,27 @@ class FtxClient:
         assert type not in ('trailing_stop',) or (trigger_price is None and trail_value is not None), \
             'Trailing stops need a trail value and cannot take a trigger price'
 
+        if order_spec == 'stop_market':
+            assert type == 'stop' and trigger_price is not None
+        elif order_spec == 'stop_limit':
+            assert type == 'stop' and trigger_price is not None and limit_price is not None
+        elif order_spec == 'take_profit_market':
+            assert type == 'trailing_stop' and trigger_price is not None
+        elif order_spec == 'trailing_stop':
+            assert type == 'trailing_stop' and trail_value is not None
+        else:
+            print('Error: invalid conditional order type')
+        
         return self._post('conditional_orders', {'market': market, 
-                                                 'side': side, 
-                                                 'triggerPrice': trigger_price,
-                                                 'size': size, 
-                                                 'reduceOnly': reduce_only, 
-                                                 'type': type,
-                                                 'cancelLimitOnTrigger': cancel, 
-                                                 'orderPrice': limit_price
-                                                 })
+                                                'side': side,
+                                                'triggerPrice': trigger_price,
+                                                'trailValue': trail_value,
+                                                'size': size, 
+                                                'reduceOnly': reduce_only, 
+                                                'type': type,
+                                                'cancelLimitOnTrigger': cancel, 
+                                                'orderPrice': limit_price
+                                                })
 
     def cancel_order(self, order_id: str) -> dict:
         return self._delete(f'orders/{order_id}')
@@ -172,6 +183,14 @@ class FtxClient:
     def get_fills(self) -> List[dict]:
         return self._get(f'fills')
 
+    def get_fills_market(self, market: str, start_time: float = None, end_time: float = None, order: str = None, order_id: int = None) -> List[dict]:
+        return self._get('fills', { 'market' : market,
+                                    'start_time': start_time,
+                                    'end_time': end_time,
+                                    'order' : order,
+                                    'order_id' : order_id
+                                    })
+
     def get_balances(self) -> List[dict]:
         return self._get('wallet/balances')
 
@@ -181,8 +200,11 @@ class FtxClient:
     def get_positions(self, show_avg_price: bool = False) -> List[dict]:
         return self._get('positions', {'showAvgPrice': show_avg_price})
 
-    def get_position(self, name: str, show_avg_price: bool = False) -> dict:
-        return next(filter(lambda x: x['future'] == name, self.get_positions(show_avg_price)), None)
+    def get_position(self, market: str, show_avg_price: bool = False) -> Optional[dict]:
+        return next(filter(lambda x: x['future'] == market, self.get_positions(show_avg_price)), None)
+
+    def get_position_by_specs(self, market: str, entry_price: float, show_avg_price: bool = False) -> Optional[dict]:
+        return next(filter(lambda x: x['future'] == market and x['entryPrice'] == entry_price, self.get_positions(show_avg_price)), None)
 
     def get_all_trades(self, market: str, start_time: float = None, end_time: float = None) -> List:
         ids = set()
@@ -203,12 +225,10 @@ class FtxClient:
             if len(response) < limit:
                 break
         return results
-    
-    # written by me
+
     def get_historical_prices(self, market: str, resolution: int, 
                               start_time: float = None, end_time: float = None) -> List[dict]:
         return self._get(f'markets/{market}/candles', {'resolution': resolution,
                                                        'start_time': start_time,
                                                        'end_time': end_time 
                                                        })
-
